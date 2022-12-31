@@ -164,4 +164,4 @@ def affiche_graphe( d : dict, tab : list):
 
 affiche_graphe(g,tab)
 
-
+##Nous en sommes ici....
