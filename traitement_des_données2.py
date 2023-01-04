@@ -1,7 +1,7 @@
 import sqlite3 as sql
 import matplotlib.pyplot as plt
 import math as m
-
+import numpy as np
 #---------------------------------------------------
 #           Fonctions auxiliaires
 #---------------------------------------------------
@@ -14,7 +14,7 @@ def est_valide (tab):
     lat_t=m.radians(43.60395967066511)
     long_t=m.radians(1.4433469299842416)
     d=2*r*m.asin(m.sqrt((m.sin((lat-lat_t)/2)**2)+m.cos(lat)*m.cos(lat_t)*(m.sin((long-long_t)/2))**2))
-    return (d<10000)
+    return (d<1000)
 
 def distance (a,b):
     #Calcule d(a,b) en m
@@ -143,7 +143,7 @@ def classe_g (g : dict):
                     c+=1
                     print("Noeud",j,"remplacé par ",i,"Nombre total de fusion:",c)
 
-#classe_g(g)
+classe_g(g)
 
 def affiche_graphe( d : dict, tab : list):
     fig, ax = plt.subplots()
@@ -152,7 +152,14 @@ def affiche_graphe( d : dict, tab : list):
         for j in v.keys():
             x=[tab[j][0],tab[k][0]]
             y=[tab[j][1],tab[k][1]]
-            ax.step(x,y , linewidth=1)
+            
+            xx = np.linspace(tab[j][0],tab[k][0], 100)
+            yy = ((tab[j][1]-tab[k][1])/(new_func(tab, k, j)))*(xx-tab[k][0])+tab[k][1]
+
+           
+
+            ax.plot(xx, yy, linewidth=0.5)
+
             ax.scatter(x, y, s=1.5)
             z+=1
             print(k)
@@ -161,6 +168,14 @@ def affiche_graphe( d : dict, tab : list):
         if z==1000:
                 break
     plt.show()
+
+def new_func(tab, k, j):
+    q=tab[j][0]-tab[k][0]
+    print(q)
+    if q!=0:
+        return q
+    else:
+        return 1
 
 affiche_graphe(g,tab)
 
