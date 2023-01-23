@@ -44,6 +44,41 @@ requete2="""select geo_shape FROM "filaire-de-voirie" """
 f=[] # Tableau brut des données récupérées : géopoints
 
 
+#---------------------------------------------------
+#           Partition des données
+#---------------------------------------------------
+gd = {}
+gd["latmin"]=0
+gd["latmax"]=0
+gd["longmin"]=0
+gd["longmax"]=0
+
+
+def taille_data (gd : dict, tab : list):
+    if tab[0]<gd["longmin"]:
+        gd["longmin"]=tab[0]
+    if tab[0]>gd["longmax"]:
+        gd["longmax"]=tab[0]
+    if tab[1]<gd["latgmin"]:
+        gd["latmin"]=tab[0]
+    if tab[1]>gd["latmax"]:
+        gd["latmax"]=tab[0]
+
+nlarge=distance([gd["longmin"],gd["latmin"]],[gd["longmin"],gd["latmax"]])//10
+nlong=distance([gd["longmin"],gd["latmmin"]],[gd["longmax"],gd["latmin"]])//10
+g=[]
+
+def partition_vide(g : list, l : int , L : int ):
+    for i in range(0,l):
+        g.append([])
+    for i in range(0,L)
+        g[l].append([])
+
+partition_vide(g)
+
+#---------------------------------------------------
+
+
 def recupere_data (f,con, req) :
     #Execute la requete req dans la db passé par con
     curseur = con.cursor()
