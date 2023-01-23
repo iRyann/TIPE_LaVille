@@ -45,7 +45,7 @@ f=[] # Tableau brut des données récupérées : géopoints
 
 
 #---------------------------------------------------
-#           Partition des données
+#           partnoeudsnement des données
 #---------------------------------------------------
 gd = {}
 gd["latmin"]=0
@@ -59,22 +59,23 @@ def taille_data (gd : dict, tab : list):
         gd["longmin"]=tab[0]
     if tab[0]>gd["longmax"]:
         gd["longmax"]=tab[0]
-    if tab[1]<gd["latgmin"]:
+    if tab[1]<gd["latmin"]:
         gd["latmin"]=tab[0]
     if tab[1]>gd["latmax"]:
         gd["latmax"]=tab[0]
 
-nlarge=distance([gd["longmin"],gd["latmin"]],[gd["longmin"],gd["latmax"]])//10
-nlong=distance([gd["longmin"],gd["latmmin"]],[gd["longmax"],gd["latmin"]])//10
-g=[]
+nlarge=np.abs(gd["latmax"]-gd["latmin"])//2 #distance([gd["longmin"],gd["latmin"]],[gd["longmin"],gd["latmax"]])//2
+nlong=np.abs(gd["longmax"]-gd["longmin"])//2 #distance([gd["longmin"],gd["latmin"]],[gd["longmax"],gd["latmin"]])//2
+partnoeuds=[]
 
 def partition_vide(g : list, l : int , L : int ):
     for i in range(0,l):
         g.append([])
-    for i in range(0,L)
-        g[l].append([])
+    for i in range(0,l):
+        for j in range(0,L):
+            g[i].append([])
 
-partition_vide(g)
+
 
 #---------------------------------------------------
 
@@ -89,6 +90,8 @@ def recupere_data (f,con, req) :
         a=eval(res[i][0])
         if est_valide(a['coordinates'][0][0]):
             f.append(a['coordinates'][0])
+            for i in a['coordinates'][0]:
+                taille_data(gd,i)
     return f
 
 
@@ -104,8 +107,7 @@ t=recupere_data(f,con,requete2)
 
 g={} #Graphe
 tab=[] #Coordonnées associées à un pt une graphe
-
-
+noeud_valide=[]
 # 1/ Création du graphe
 
 def ajoute_voisin(g : dict, i : int , c : tuple ) :
@@ -126,6 +128,7 @@ def ajoute_noeud(g : dict, t : list, tab : list):
         for j in range(0,len(t[i])):
             g[n]={}
             tab.append(t[i][j])
+            noeud_valide.append(True)
             n+=1
         #Complétion du voisinnage
         if (len(t[i]))>1:
@@ -137,11 +140,29 @@ def ajoute_noeud(g : dict, t : list, tab : list):
 #en retenant les coordonnées de chaque noeud de g dans tab
 ajoute_noeud(g,t,tab)
 
+# 3/ Complétion de la partnoeuds 
+partition_vide(partnoeuds,nlarge,nlong)
+
+tabclasse=[] # Pour chaque noeud, on retient sa classe. 
+
+def add_part(gg : dict, t: list):
+    # Etant donné un graphe "gg" , on partionnent l'ensemble des noeuds selon leurs coordonées dans "t"
+    for k in gg.keys():
+        N=0
+        E=0
+        while(not(N*nlong<=tab[k][0]<=(N+1)*nlong)):
+            N+=1
+        while(not(E*nlarge<=tab[k][0]<=(E+1)*nlarge)):
+            E+=1
+        partnoeuds[N][E].append(k)
+        tabclasse[k]=[N,E]
+
+add_part(g,tab)
 
 
 # 2/ Correction du graphe
 
-
+## Fonctions batardes -----------
 def remplace (i : int , j : int ) :
     #On ajoute les voisins de j à ceux de i
     for k,v in g[j].items():
@@ -164,22 +185,77 @@ def remplace (i : int , j : int ) :
         if b:
             v[i]=distance(tab[z],tab[i])
         
-
-
-
 def classe_g (g : dict):
-    c=0
     for i in range(0,len(g)):
-        if bool(g[i]):
-            for j in range(1+i,len(g)):
-                if bool(g[j]) and distance(tab[i],tab[j])<1:
-                    remplace(i,j)
-                    g[j]={}
-                    c+=1
-                    print("Noeud",j,"remplacé par ",i,"Nombre total de fusion:",c)
+            if bool(g[i]):
+                for j in range(1+i,len(g)):
+                    if bool(g[j]) and distance(tab[i],tab[j])<1:
+                        remplace(i,j)
+                        g[j]={}
 
-classe_g(g)
-print(g)
+# --------------------------------
+    
+def fusion ( i : int , j : int ):
+    # Fusionne le noeud i et j, en attibuant remplaçant j par i dans les voisins de celui-ci
+    for k,v in g[j].items():
+        if (k!=i and not(k in g[i])):
+            g[i][k]=v
+        del g[k][j]
+        g[k][i]=v
+    noeud_valide[j]=False
+    
+def apptab(x : int, y : int ):
+    # part[x][y] isn't out of range
+    return(x>=0 and y>=0 and x<nlong and y<nlarge)
+
+
+def classement(g:dict):
+    ##Classe le dictionnaire g en recquérant les fusions nécessaires
+    for k in g.keys:
+        X=k
+        temp=[]
+        n=tabclasse[k][0]
+        e=tabclasse[k][1]
+
+        for i in range(-1,2):
+            for j in range(-1,2):
+                if apptab(n+i,e+j):
+                    for z in partnoeuds[z]:
+                        if z<X:
+                            X=z
+                        if distance(z,k)<1:
+                            temp.append(z)
+        for i in temp:
+            fusion(X,i)
+            g[i]={}
+
+
+g_final={}
+gf_coord=[]
+
+def renum( t1 : list , t2 : list, g1 : dict, gf : dict):
+    table=[]
+    c=0
+    for k in g1.keys():
+        if t1[k]:
+            table.append(c)
+            t2.append(tab[k])
+            c+=1
+        else:
+            table.append(-1)
+    
+    for k,v in g1.items():
+        if table[k]!=-1:
+            for kk,vv in v.items():
+                if table[kk]!=-1:
+                    gf[table[k]]=vv
+
+
+renum(noeud_valide,gf_coord,g,g_final)
+
+
+
+
 
 def affiche_graphe( d : dict, tab : list):
     fig, ax = plt.subplots()
