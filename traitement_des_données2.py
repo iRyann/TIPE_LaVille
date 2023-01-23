@@ -14,7 +14,7 @@ def est_valide (tab):
     lat_t=m.radians(43.60395967066511)
     long_t=m.radians(1.4433469299842416)
     d=2*r*m.asin(m.sqrt((m.sin((lat-lat_t)/2)**2)+m.cos(lat)*m.cos(lat_t)*(m.sin((long-long_t)/2))**2))
-    return (d<1000)
+    return (d<200)
 
 def distance (a,b):
     #Calcule d(a,b) en m
@@ -113,22 +113,22 @@ def remplace (i : int , j : int ) :
         g[i][k]=v
 
     #On remplace j par i pour toutes les occurences de j
-    for v in g.values():
-        r={}
-        dmoy=0
-        c=1
+    for z,v in g.items():
+        b=True
+        
+        r=[]
         for k in v.keys():
+            if k==i:
+                b=False
+            
             if k==j:
-                r[k]=v[k]
-                dmoy+=v[k]
-                c+=1
-        for k in r.keys():
-            del v[k]
-        v[i]=(dmoy/c)
-        del c,dmoy,r
-
-
-
+                r.append(k) 
+        for l in r:
+            del v[l]
+        del r
+        if b:
+            v[i]=distance(tab[z],tab[i])
+        
 
 
 
@@ -144,17 +144,19 @@ def classe_g (g : dict):
                     print("Noeud",j,"remplacé par ",i,"Nombre total de fusion:",c)
 
 classe_g(g)
+print(g)
 
 def affiche_graphe( d : dict, tab : list):
     fig, ax = plt.subplots()
     z=0
     for k,v in d.items():
         for j in v.keys():
+
             x=[tab[j][0],tab[k][0]]
             y=[tab[j][1],tab[k][1]]
             
             xx = np.linspace(tab[j][0],tab[k][0], 100)
-            yy = ((tab[j][1]-tab[k][1])/(new_func(tab, k, j)))*(xx-tab[k][0])+tab[k][1]
+            yy = ((tab[j][1]-tab[k][1])/(tab[j][0]-tab[k][0]))*(xx-tab[k][0])+tab[k][1]
 
            
 
@@ -169,14 +171,3 @@ def affiche_graphe( d : dict, tab : list):
                 break
     plt.show()
 
-def new_func(tab, k, j):
-    q=tab[j][0]-tab[k][0]
-    print(q)
-    if q!=0:
-        return q
-    else:
-        return 1
-
-affiche_graphe(g,tab)
-
-##Nous en sommes ici....
