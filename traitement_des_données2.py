@@ -64,8 +64,8 @@ def taille_data (gd : dict, tab : list):
     if tab[1]>gd["latmax"]:
         gd["latmax"]=tab[0]
 
-nlarge=np.abs(gd["latmax"]-gd["latmin"])//2 #distance([gd["longmin"],gd["latmin"]],[gd["longmin"],gd["latmax"]])//2
-nlong=np.abs(gd["longmax"]-gd["longmin"])//2 #distance([gd["longmin"],gd["latmin"]],[gd["longmax"],gd["latmin"]])//2
+nlarge=np.abs((gd["latmax"]-gd["latmin"])*10**9)//2 #distance([gd["longmin"],gd["latmin"]],[gd["longmin"],gd["latmax"]])//2
+nlong=np.abs((gd["longmax"]-gd["longmin"])*10**9)//2 #distance([gd["longmin"],gd["latmin"]],[gd["longmax"],gd["latmin"]])//2
 partnoeuds=[]
 
 def partition_vide(g : list, l : int , L : int ):
