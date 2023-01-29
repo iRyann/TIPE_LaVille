@@ -48,10 +48,13 @@ f=[] # Tableau brut des données récupérées : géopoints
 #           partnoeudsnement des données
 #---------------------------------------------------
 gd = {}
-gd["latmin"]=0
-gd["latmax"]=0
-gd["longmin"]=0
-gd["longmax"]=0
+
+def init_gd(tab : list):
+    gd["longmin"]=tab[0]
+    gd["longmax"]=tab[0]
+    gd["latmin"]=tab[0]
+    gd["latmax"]=tab[0]
+
 
 
 def taille_data (gd : dict, tab : list):
@@ -64,8 +67,8 @@ def taille_data (gd : dict, tab : list):
     if tab[1]>gd["latmax"]:
         gd["latmax"]=tab[0]
 
-nlarge=np.abs((gd["latmax"]-gd["latmin"])*10**9)//2 #distance([gd["longmin"],gd["latmin"]],[gd["longmin"],gd["latmax"]])//2
-nlong=np.abs((gd["longmax"]-gd["longmin"])*10**9)//2 #distance([gd["longmin"],gd["latmin"]],[gd["longmax"],gd["latmin"]])//2
+nlarge=int(distance([gd["longmin"],gd["latmin"]],[gd["longmin"],gd["latmax"]])//2)
+nlong=int(distance([gd["longmin"],gd["latmin"]],[gd["longmax"],gd["latmin"]])//2)
 partnoeuds=[]
 
 def partition_vide(g : list, l : int , L : int ):
@@ -85,7 +88,10 @@ def recupere_data (f,con, req) :
     curseur = con.cursor()
     res = None
     curseur.execute(req)
-    res = curseur.fetchall()
+
+    a=eval(res[0][0])
+    init_gd(a['coordinates'][0][0])
+
     for i in range(0,len(res)-1):
         a=eval(res[i][0])
         if est_valide(a['coordinates'][0][0]):
@@ -150,9 +156,9 @@ def add_part(gg : dict, t: list):
     for k in gg.keys():
         N=0
         E=0
-        while(not(N*nlong<=tab[k][0]<=(N+1)*nlong)):
+        while(not(N*nlong<=distance([gd["longmin"],tab[k][1]],tab[k])<=(N+1)*nlong)):
             N+=1
-        while(not(E*nlarge<=tab[k][0]<=(E+1)*nlarge)):
+        while(not(E*nlarge<=distance([tab[k][0]],gd["latmin"])<=(E+1)*nlarge)):
             E+=1
         partnoeuds[N][E].append(k)
         tabclasse[k]=[N,E]
@@ -161,39 +167,7 @@ add_part(g,tab)
 
 
 # 2/ Correction du graphe
-
-## Fonctions batardes -----------
-def remplace (i : int , j : int ) :
-    #On ajoute les voisins de j à ceux de i
-    for k,v in g[j].items():
-        g[i][k]=v
-
-    #On remplace j par i pour toutes les occurences de j
-    for z,v in g.items():
-        b=True
-        
-        r=[]
-        for k in v.keys():
-            if k==i:
-                b=False
-            
-            if k==j:
-                r.append(k) 
-        for l in r:
-            del v[l]
-        del r
-        if b:
-            v[i]=distance(tab[z],tab[i])
-        
-def classe_g (g : dict):
-    for i in range(0,len(g)):
-            if bool(g[i]):
-                for j in range(1+i,len(g)):
-                    if bool(g[j]) and distance(tab[i],tab[j])<1:
-                        remplace(i,j)
-                        g[j]={}
-
-# --------------------------------
+  
     
 def fusion ( i : int , j : int ):
     # Fusionne le noeud i et j, en attibuant remplaçant j par i dans les voisins de celui-ci
@@ -212,22 +186,23 @@ def apptab(x : int, y : int ):
 def classement(g:dict):
     ##Classe le dictionnaire g en recquérant les fusions nécessaires
     for k in g.keys:
-        X=k
-        temp=[]
-        n=tabclasse[k][0]
-        e=tabclasse[k][1]
+        if bool(k):
+            X=k
+            temp=[]
+            n=tabclasse[k][0]
+            e=tabclasse[k][1]
 
-        for i in range(-1,2):
-            for j in range(-1,2):
-                if apptab(n+i,e+j):
-                    for z in partnoeuds[z]:
-                        if z<X:
-                            X=z
-                        if distance(z,k)<1:
-                            temp.append(z)
-        for i in temp:
-            fusion(X,i)
-            g[i]={}
+            for i in range(-1,2):
+                for j in range(-1,2):
+                    if apptab(n+i,e+j):
+                        for z in partnoeuds[z]:
+                            if z<X:
+                                X=z
+                            if distance(z,k)<1:
+                                temp.append(z)
+            for i in temp:
+                fusion(X,i)
+                g[i]={}
 
 
 g_final={}
