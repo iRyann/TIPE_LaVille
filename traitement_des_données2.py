@@ -14,12 +14,12 @@ def est_valide (tab):
     lat_t=m.radians(43.60395967066511)
     long_t=m.radians(1.4433469299842416)
     d=2*r*m.asin(m.sqrt((m.sin((lat-lat_t)/2)**2)+m.cos(lat)*m.cos(lat_t)*(m.sin((long-long_t)/2))**2))
-    return (d<200)
+    return (d<5000)
 
 def distance (a,b):
     #Calcule d(a,b) en m
     lat=m.radians(a[1])
-    long=m.radians(b[0])
+    long=m.radians(a[0])
     r=6371*(10**3)
     lat_t=m.radians(b[1])
     long_t=m.radians(b[0])
@@ -49,11 +49,10 @@ f=[] # Tableau brut des données récupérées : géopoints
 #---------------------------------------------------
 gd = {}
 
-def init_gd(tab : list):
-    gd["longmin"]=tab[0]
-    gd["longmax"]=tab[0]
-    gd["latmin"]=tab[0]
-    gd["latmax"]=tab[0]
+gd["longmin"]=1.4433469299842416
+gd["longmax"]=1.4433469299842416
+gd["latmin"]=43.60395967066511
+gd["latmax"]=43.60395967066511
 
 
 
@@ -63,15 +62,14 @@ def taille_data (gd : dict, tab : list):
     if tab[0]>gd["longmax"]:
         gd["longmax"]=tab[0]
     if tab[1]<gd["latmin"]:
-        gd["latmin"]=tab[0]
+        gd["latmin"]=tab[1]
     if tab[1]>gd["latmax"]:
-        gd["latmax"]=tab[0]
+        gd["latmax"]=tab[1]
 
-nlarge=int(distance([gd["longmin"],gd["latmin"]],[gd["longmin"],gd["latmax"]])//2)
-nlong=int(distance([gd["longmin"],gd["latmin"]],[gd["longmax"],gd["latmin"]])//2)
-partnoeuds=[]
+
 
 def partition_vide(g : list, l : int , L : int ):
+    
     for i in range(0,l):
         g.append([])
     for i in range(0,l):
@@ -88,9 +86,7 @@ def recupere_data (f,con, req) :
     curseur = con.cursor()
     res = None
     curseur.execute(req)
-
-    a=eval(res[0][0])
-    init_gd(a['coordinates'][0][0])
+    res = curseur.fetchall()
 
     for i in range(0,len(res)-1):
         a=eval(res[i][0])
@@ -100,6 +96,8 @@ def recupere_data (f,con, req) :
                 taille_data(gd,i)
     return f
 
+
+partnoeuds=[]
 
 #On récupère les données dans f grâce à la requête requete2
 t=recupere_data(f,con,requete2)
@@ -117,7 +115,7 @@ noeud_valide=[]
 # 1/ Création du graphe
 
 def ajoute_voisin(g : dict, i : int , c : tuple ) :
-    #Ajoute la relation i->j et j->i telle que d(i,j)=d
+    #Ajoute la relation i->j et j->i telle que d(i,j)=dist
     (j,dist)=c
     if(not(j in g[i])):
         g[i][j]=dist
@@ -129,8 +127,9 @@ def ajoute_voisin(g : dict, i : int , c : tuple ) :
 
 def ajoute_noeud(g : dict, t : list, tab : list):
     n=0 #nombre de noeuds
-    #len(t)-1
+    
     for i in range(0,len(t)-1):
+        
         for j in range(0,len(t[i])):
             g[n]={}
             tab.append(t[i][j])
@@ -146,21 +145,33 @@ def ajoute_noeud(g : dict, t : list, tab : list):
 #en retenant les coordonnées de chaque noeud de g dans tab
 ajoute_noeud(g,t,tab)
 
+##Calcul distance partition
+nlat=int(distance([gd["longmin"],gd["latmin"]],[gd["longmin"],gd["latmax"]])/2)
+nlong=int(distance([gd["longmin"],gd["latmin"]],[gd["longmax"],gd["latmin"]])/2)
+
 # 3/ Complétion de la partnoeuds 
-partition_vide(partnoeuds,nlarge,nlong)
+partition_vide(partnoeuds,nlat,nlong)
+
 
 tabclasse=[] # Pour chaque noeud, on retient sa classe. 
 
 def add_part(gg : dict, t: list):
     # Etant donné un graphe "gg" , on partionnent l'ensemble des noeuds selon leurs coordonées dans "t"
     for k in gg.keys():
+        print(k)
         N=0
         E=0
-        while(not(N*nlong<=distance([gd["longmin"],tab[k][1]],tab[k])<=(N+1)*nlong)):
+        dlat=distance([gd["longmin"],tab[k][1]],tab[k])
+        dlong=distance([tab[k][0],gd["latmin"]],tab[k])
+
+        
+        while(not(N*nlong<=dlong and dlong<=(N+1)*nlong)):
             N+=1
-        while(not(E*nlarge<=distance([tab[k][0]],gd["latmin"])<=(E+1)*nlarge)):
+            print(N*nlong,dlong)
+        while(not(E*nlat<=dlat and dlong<=(E+1)*nlat)):
             E+=1
         partnoeuds[N][E].append(k)
+        print("On ajoute",k)
         tabclasse[k]=[N,E]
 
 add_part(g,tab)
@@ -180,7 +191,7 @@ def fusion ( i : int , j : int ):
     
 def apptab(x : int, y : int ):
     # part[x][y] isn't out of range
-    return(x>=0 and y>=0 and x<nlong and y<nlarge)
+    return(x>=0 and y>=0 and x<nlong and y<nlat)
 
 
 def classement(g:dict):
@@ -202,6 +213,7 @@ def classement(g:dict):
                                 temp.append(z)
             for i in temp:
                 fusion(X,i)
+                print("Noeud",X,"fusionné avec le noeud",i)
                 g[i]={}
 
 
@@ -226,7 +238,7 @@ def renum( t1 : list , t2 : list, g1 : dict, gf : dict):
                     gf[table[k]]=vv
 
 
-renum(noeud_valide,gf_coord,g,g_final)
+##renum(noeud_valide,gf_coord,g,g_final)
 
 
 
