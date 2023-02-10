@@ -14,7 +14,7 @@ def est_valide (tab):
     lat_t=m.radians(43.60395967066511)
     long_t=m.radians(1.4433469299842416)
     d=2*r*m.asin(m.sqrt((m.sin((lat-lat_t)/2)**2)+m.cos(lat)*m.cos(lat_t)*(m.sin((long-long_t)/2))**2))
-    return (d<5000)
+    return (d<1000)
 
 def distance (a,b):
     #Calcule d(a,b) en m
@@ -155,15 +155,18 @@ partition_vide(partnoeuds,nlat,nlong)
 
 tabclasse=[] # Pour chaque noeud, on retient sa classe. 
 
+
 def add_part(gg : dict, t: list):
     # Etant donné un graphe "gg" , on partionnent l'ensemble des noeuds selon leurs coordonées dans "t"
+    
+    
     for k in gg.keys():
-        print(k)
+        
         N=0
         E=0
         dlat=distance([gd["longmin"],tab[k][1]],tab[k])
         dlong=distance([tab[k][0],gd["latmin"]],tab[k])
-
+        
         
         while(not(N*nlong<=dlong and dlong<=(N+1)*nlong)):
             N+=1
@@ -172,7 +175,8 @@ def add_part(gg : dict, t: list):
             E+=1
         partnoeuds[N][E].append(k)
         print("On ajoute",k)
-        tabclasse[k]=[N,E]
+        tabclasse.append([N,E])
+    print("Création de la partition terminée")
 
 add_part(g,tab)
 
@@ -263,9 +267,5 @@ def affiche_graphe( d : dict, tab : list):
             ax.scatter(x, y, s=1.5)
             z+=1
             print(k)
-            if z==1000:
-                break
-        if z==1000:
-                break
     plt.show()
 
