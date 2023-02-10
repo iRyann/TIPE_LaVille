@@ -14,7 +14,7 @@ def est_valide (tab):
     lat_t=m.radians(43.60395967066511)
     long_t=m.radians(1.4433469299842416)
     d=2*r*m.asin(m.sqrt((m.sin((lat-lat_t)/2)**2)+m.cos(lat)*m.cos(lat_t)*(m.sin((long-long_t)/2))**2))
-    return (d<1000)
+    return (d<500)
 
 def distance (a,b):
     #Calcule d(a,b) en m
@@ -170,9 +170,11 @@ def add_part(gg : dict, t: list):
         
         while(not(N*nlong<=dlong and dlong<=(N+1)*nlong)):
             N+=1
-            print(N*nlong,dlong)
-        while(not(E*nlat<=dlat and dlong<=(E+1)*nlat)):
+           
+            
+        while(not(E*nlat<=dlat and dlat<=(E+1)*nlat)):
             E+=1
+            
         partnoeuds[N][E].append(k)
         print("On ajoute",k)
         tabclasse.append([N,E])
@@ -189,8 +191,9 @@ def fusion ( i : int , j : int ):
     for k,v in g[j].items():
         if (k!=i and not(k in g[i])):
             g[i][k]=v
-        del g[k][j]
         g[k][i]=v
+        del g[k][j]
+        
     noeud_valide[j]=False
     
 def apptab(x : int, y : int ):
@@ -198,9 +201,9 @@ def apptab(x : int, y : int ):
     return(x>=0 and y>=0 and x<nlong and y<nlat)
 
 
-def classement(g:dict):
+def classement(g:dict, t : list ):
     ##Classe le dictionnaire g en recquérant les fusions nécessaires
-    for k in g.keys:
+    for k in g.keys():
         if bool(k):
             X=k
             temp=[]
@@ -210,17 +213,18 @@ def classement(g:dict):
             for i in range(-1,2):
                 for j in range(-1,2):
                     if apptab(n+i,e+j):
-                        for z in partnoeuds[z]:
-                            if z<X:
-                                X=z
-                            if distance(z,k)<1:
-                                temp.append(z)
+                        for z in partnoeuds[n+i][e+j]:
+                            if distance(t[z],t[k])<2 and z!=X:
+                                if z<X:
+                                    X=z
+                                else: 
+                                    temp.append(z)
             for i in temp:
                 fusion(X,i)
-                print("Noeud",X,"fusionné avec le noeud",i)
+                print("Noeud",i,"fusionné avec le noeud",X)
                 g[i]={}
 
-
+classement(g,tab)
 g_final={}
 gf_coord=[]
 
@@ -239,10 +243,13 @@ def renum( t1 : list , t2 : list, g1 : dict, gf : dict):
         if table[k]!=-1:
             for kk,vv in v.items():
                 if table[kk]!=-1:
-                    gf[table[k]]=vv
+                    o=int(table[k])
+                    p=int(table[kk])
+                    gf[o]={}
+                    gf[o][p]=vv
 
 
-##renum(noeud_valide,gf_coord,g,g_final)
+renum(noeud_valide,gf_coord,g,g_final)
 
 
 
@@ -251,21 +258,27 @@ def renum( t1 : list , t2 : list, g1 : dict, gf : dict):
 def affiche_graphe( d : dict, tab : list):
     fig, ax = plt.subplots()
     z=0
+    a=43.60395967066511
+    b=1.4433469299842416
+    ax.scatter(b,a,s=5)
     for k,v in d.items():
         for j in v.keys():
 
             x=[tab[j][0],tab[k][0]]
             y=[tab[j][1],tab[k][1]]
-            
-            xx = np.linspace(tab[j][0],tab[k][0], 100)
-            yy = ((tab[j][1]-tab[k][1])/(tab[j][0]-tab[k][0]))*(xx-tab[k][0])+tab[k][1]
+            e=tab[j][0]-tab[k][0]
+            if e==0:
+                e=10**(-16)
 
-           
+
+            xx = np.linspace(tab[j][0],tab[k][0], 100)
+            yy = ((tab[j][1]-tab[k][1])/(e))*(xx-tab[k][0])+tab[k][1]
 
             ax.plot(xx, yy, linewidth=0.5)
 
-            ax.scatter(x, y, s=1.5)
+            ax.scatter(x, y, s=2.5)
             z+=1
             print(k)
     plt.show()
 
+affiche_graphe(g_final,gf_coord)
