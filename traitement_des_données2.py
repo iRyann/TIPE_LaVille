@@ -2,6 +2,9 @@ import sqlite3 as sql
 import matplotlib.pyplot as plt
 import math as m
 import numpy as np
+import random
+import json
+
 #---------------------------------------------------
 #           Fonctions auxiliaires
 #---------------------------------------------------
@@ -14,7 +17,7 @@ def est_valide (tab):
     lat_t=m.radians(43.60395967066511)
     long_t=m.radians(1.4433469299842416)
     d=2*r*m.asin(m.sqrt((m.sin((lat-lat_t)/2)**2)+m.cos(lat)*m.cos(lat_t)*(m.sin((long-long_t)/2))**2))
-    return (d<1000)
+    return (d<100)
 
 def distance (a,b):
     #Calcule d(a,b) en m
@@ -26,19 +29,17 @@ def distance (a,b):
     d=2*r*m.asin(m.sqrt((m.sin((lat-lat_t)/2)**2)+m.cos(lat)*m.cos(lat_t)*(m.sin((long-long_t)/2))**2))
     return d
 
+def rgb_to_hex(rgb):
+    return '#%02x%02x%02x' % rgb
+
 #---------------------------------------------------
 #   Fonction d'affichage
 #---------------------------------------------------
 
-def affiche_graphe( d : dict, tab : list):
-    fig, ax = plt.subplots()
-    #----- Affichage de la grille ----------------------
-    
-    #----------------------------------------------------
-    z=0
-    a=43.60395967066511
-    b=1.4433469299842416
-    ax.scatter(b,a,s=5)
+#def affiche_graphe( d : dict, tab : list,immeuble : list, poids_im : list):
+    #fig, ax = plt.subplots()
+    c=0
+    c_im=0
     for k,v in d.items():
         for j in v.keys():
 
@@ -51,33 +52,86 @@ def affiche_graphe( d : dict, tab : list):
 
             xx = np.linspace(tab[j][0],tab[k][0], 100)
             yy = ((tab[j][1]-tab[k][1])/(e))*(xx-tab[k][0])+tab[k][1]
+            ang = (tab[j][1]-tab[k][1])/(e)
+            
+            plt.plot(xx, yy, linewidth=0.5, c='green')
+            
+            # On ajoute les immeuble de la rue ---
+            if c_im==c :
+                
+                xim_l=[]
+                yim_l=[]
+                area=[]
+                
+                for i in range (c_im,c_im+len(poids_im[c])):
+                    (a,b,d)=immeuble[i]
+                    xim_l.append(x[0]+d*np.sin(ang))
+                    yim_l.append(x[1]+d*np.cos(ang)*(np.abs(ang)/ang))
+                    area.append(poids_im[c][i-c_im])
 
-            ax.plot(xx, yy, linewidth=0.5)
+                c_im = c + len(poids_im[c])
 
-            print(z)
-            z+=1
-    plt.plot(abs,ord,'g^')        
+                data = {'x': np.array(xim_l),
+
+                        'y': np.array(yim_l),
+
+                        'color': np.array(area)}
+                
+                plt.scatter('x', 'y', c='color', data=data)
+            # -------------------------------------
+            
+            c+=1
+    
+    cbar= plt.colorbar()
+
+    cbar.set_label("Densité de population", labelpad=+1)
+       
+    plt.show()
+
+
+def affiche_graphe( d : dict, tab : list,immeuble : list):
+    #fig, ax = plt.subplots()
+    c=0
+    c_im=0
+    for k,v in d.items():
+        for j in v.keys():
+
+            x=[tab[j][0],tab[k][0]]
+            y=[tab[j][1],tab[k][1]]
+            e=tab[j][0]-tab[k][0]
+            if e==0:
+                e=10**(-16)
+
+
+            xx = np.linspace(tab[j][0],tab[k][0], 100)
+            yy = ((tab[j][1]-tab[k][1])/(e))*(xx-tab[k][0])+tab[k][1]
+            ang = (tab[j][1]-tab[k][1])/(e)
+            
+            plt.plot(xx, yy, linewidth=0.5)
+                       
+            c+=1
+    
+    
+       
     plt.show()
 
 
 
-
-
-#---------------------------------------------------
-#           Récupération des données
-#---------------------------------------------------
+#---------------------------------------------------#
+#           Récupération des données                #
+#---------------------------------------------------#
 
 #-Base de donnée support ---------------------------
 con = sql.connect('filaire_de_voirie.db')
 requete2="""select geo_shape FROM "filaire-de-voirie" """
 
 
-f=[] # Tableau brut des données récupérées : géopoints
+LGeopoints=[] # Tableau brut des données récupérées : géopoints
 
 
-#---------------------------------------------------
-#           partnoeudsnement des données
-#---------------------------------------------------
+#---------------------------------------------------#
+#           partnoeudsnement des données            #
+#---------------------------------------------------#
 gd = {}
 
 gd["longmin"]=1.4433469299842416
@@ -131,7 +185,7 @@ def recupere_data (f,con, req) :
 partnoeuds=[]
 
 #On récupère les données dans f grâce à la requête requete2
-t=recupere_data(f,con,requete2)
+t=recupere_data(LGeopoints,con,requete2)
 
 
 
@@ -157,8 +211,7 @@ def ajoute_voisin(g : dict, i : int , c : tuple ) :
         print(i,j)
         raise ValueError("Relation déjà présente")
 
-abs=[]
-ord=[]
+
 
 def ajoute_noeud(g : dict, t : list, tab : list):
     n=0 #nombre de noeuds
@@ -168,8 +221,6 @@ def ajoute_noeud(g : dict, t : list, tab : list):
         for j in range(0,len(t[i])):
             g[n]={}
             tab.append(t[i][j])
-            abs.append(t[i][j][0])
-            ord.append(t[i][j][1])
             noeud_valide.append(True)
             n+=1
         #Complétion du voisinnage
@@ -271,7 +322,7 @@ def classement(g:dict, t : list , eps : float):
                 assert(not(noeud_valide[i]))
 
 classement(g,tab,0.9*eta) # Attention eps < eta
-#affiche_graphe(g,tab)
+
 g_final={}
 gf_coord=[]
 
@@ -296,9 +347,285 @@ def renum( t1 : list , t2 : list, g1 : dict, gf : dict):
                     gf[o][p]=vv
 
 
+
 renum(noeud_valide,gf_coord,g,g_final)
+print("Graphe final crée avec succès !")
 
-print("Taille avant fusion:",len(g),"Taille après fusion",len(g_final))
 
-affiche_graphe(g_final,gf_coord)
 
+
+
+
+
+#4/ Traitement du graphe 
+
+## --------- Ajout de la population ------------ #
+
+immeubleL = [] ## Liste des immeubles  
+poidsL = [] # Poids de chaque immeuble
+popL = [] # Nombre d'habitant par rue 
+poidsLL = []
+## Types de rues : 
+# 0 : Administrative
+# 1 : Résidentielle
+# 2 : Commerçante
+
+def proba_rue() :
+# Retourne un type de rue     
+    x=random.random()
+    if x<0.5:
+        y=random.random()
+        if y<0.5:
+            return 0
+        else: return 1
+    else: return 2
+
+
+
+##dictinnaire d'arete traitée 
+def ajoute_population( g : dict , poids_immeuble : list , immeuble : list, population : list) :
+## g est une copie du graphe
+    for k,v in g.items() :
+        for kk,vv in v.items():
+            print("Traitement de la rue :",k,"->",kk)
+            if vv>=0:
+                # On définit le type de la rue
+                t=proba_rue()             
+                poids_im=[]
+                dist_parcours=0
+                pop_rue=0
+                while(dist_parcours<vv):
+                    
+                    poids=0
+                    # Un immeuble tous les px +/- pt
+                    pt=0 
+                    px=0
+                    match t:
+                        case 0:
+                            px=vv/5
+                            pt=random.uniform(0,0.5*px)
+                            px+=pt
+                            poids=random.randint(10,20)
+                        case 1:
+                            px=vv/10
+                            pt=random.uniform(0,0.5*px)
+                            px+=pt
+                            poids=random.randint(20,30)
+                        case 2:
+                            px=vv/7
+                            pt=random.uniform(0,0.8*px)
+                            px+=pt
+                            poids=random.randint(10,20)
+                    if dist_parcours+px<vv:
+                        immeuble.append((k,kk,dist_parcours+px))
+                        poids_im.append(poids)
+                        poidsLL.append(poids)
+                        pop_rue+=poids
+                        dist_parcours=dist_parcours+px
+                    
+                    else: 
+                        break 
+                    poids_immeuble.append(poids_im)
+                    population.append(pop_rue) 
+
+ajoute_population(g_final,poidsL,immeubleL,popL)
+
+
+
+affiche_graphe(g,tab,immeubleL)
+
+# ---------------------------------------#
+#               Résolution               #
+#----------------------------------------#
+
+import heapq
+
+
+def succ (g,n) :
+  u=n
+  return g[u] 
+
+def dijkstra (g,s,sf) :
+  n = len(g)
+  d = []
+  for i in range (0,n) :
+    d.append(1000)
+  d[s]=0
+  o=[]
+  heapq.heappush(o, (d[s], s))
+  while o != [] :
+    (_,u) = heapq.heappop(o)
+    for k in succ(g,u).keys() :
+      v=int(k)
+      if d[u]+succ(g,u)[k] < d[v] :
+        temp = d[v]
+        d[v] = d[u]+succ(g,u)[k]
+        if temp == 1000 :
+          heapq.heappush(o,(d[v],v))
+  return d[sf]
+
+
+
+def graph_with_station (g,s1,s2,d,ind_imm,l3):
+  (s1_imm,s2_imm,d_imm) = l3[ind_imm]
+  if (s1_imm == s1) and (s2_imm == s2) :
+    if d_imm < d :
+      ns1 = len(g)-1
+      ns2 = s2_imm
+      d = d-d_imm
+    else :
+      ns1 = s1_imm
+      ns2 = len(g)-1
+  elif (s1_imm == s2) and (s2_imm == s1) :
+    if d_imm < (d_imm + (g[len(g)-1])[s2_imm] - d) :
+      ns1 = s2_imm
+      ns2 = len(g)-1
+    else:
+      ns1 = len(g)-1
+      ns2 = s1_imm
+      d = d - (g[len(g)-1])[s2_imm]
+  else :
+    ns1 = s1
+    ns2 = s2
+  new_g = {}
+  for k,v in g.items() :
+    new_g[k] = v.copy()
+  sta=len(g)
+  new_g[sta]={ns1:d,ns2:(g[ns1])[ns2]-d}
+  (new_g[ns1])[sta]=d
+  (new_g[ns2])[sta]=(g[ns1])[ns2]-d
+  del (new_g[ns1])[ns2]
+  del (new_g[ns2])[ns1]
+  return new_g
+
+
+
+def graph_with_imm (g,ind_imm,l3):
+  new_g = {}
+  for k,v in g.items() :
+    new_g[k] = v.copy()
+  ind_imm_gra=len(g)
+  (s1,s2,d) = l3[ind_imm]
+  ns1 = s1
+  ns2 = s2
+  new_g[ind_imm_gra]={ns1:d,ns2:(g[ns1])[ns2]-d}
+  (new_g[ns1])[ind_imm_gra]=d
+  (new_g[ns2])[ind_imm_gra]=(g[ns1])[ns2]-d
+  del (new_g[ns1])[ns2]
+  del (new_g[ns2])[ns1]
+  return new_g
+
+
+
+def min_dist (g,l,l3,p) :
+  g_imm = graph_with_imm (g,p,l3)
+  (s1,s2,d) = l[0]
+  g0 = graph_with_station(g_imm,s1,s2,d,p,l3)
+  res = dijkstra(g0,len(g0)-2,len(g0)-1)
+  for i in range (1,len (l)) :
+    (si1,si2,di) = l[i]
+    gi = graph_with_station(g_imm,si1,si2,di,p,l3)
+    res = min(res,dijkstra(gi,len(gi)-2,len(gi)-1))
+  return res
+
+def f (g,l,l2,l3) :
+  res = 0
+  som = 0
+  for i in range (0,len(l3)) :
+    res = res + (min_dist(g,l,l3,i)*l2[i])
+  for i in range (0,len(l3)) :
+    som = som + l2[i]
+  res = res/som
+  return res
+
+
+
+def simulated_annealing(g,initial_state,l2,l3):
+    """Peforms simulated annealing to find a solution"""
+    initial_temp = 300
+    final_temp = 1
+    current_temp = initial_temp
+
+    # Start by initializing the current state with the initial state
+    current_state = initial_state
+    solution = current_state
+
+    while current_temp > final_temp:
+        neighbor = get_neighbors(g,current_state,l2,current_temp)
+        # print(neighbor)
+        # Check if neighbor is best so far
+        cost_diff = f(g,current_state,l2,l3)-f(g,neighbor,l2,l3)
+        # print(cost_diff)
+        # if the new solution is better, accept it
+        if cost_diff > 0:
+            solution = neighbor
+        # if the new solution is not better, accept it with a probability of e^(-cost/temp)
+        else:
+            if random.uniform(0, 1) > m.exp(cost_diff / current_temp) :
+                solution = neighbor
+        # decrement the temperature
+        # print(solution)
+        current_temp = current_temp * 0.999
+        
+        current_state = solution
+    return solution
+
+
+
+
+def get_neighbor_station(g,station,eps):
+  """Returns neighbors of the argument state for your solution."""
+  (s1,s2,d) = station
+  ns1 = s1
+  ns2 = s2
+  carburant=random.uniform(0,eps)
+  sens=random.randint(0,1)
+  if sens == 1 :
+    d = (g[ns1])[ns2] - d
+    temp = ns1
+    ns1 = ns2
+    ns2 = temp
+  while carburant != 0 :
+    if carburant > (g[ns1])[ns2] - d :
+      carburant = carburant - ((g[ns1])[ns2] - d)
+      voisins = list(g[ns2].keys())
+      temp=ns2
+      ns2=random.choice(voisins)
+      ns1=temp
+      d = 0
+    else :
+      d = d + carburant
+      carburant = 0
+  return (ns1,ns2,d)
+
+
+def get_neighbors(g,state,l2,eps):
+  """Returns neighbors of the argument state for your solution."""
+  res=[]
+  for i in range (0,len(state)):
+    res.append(get_neighbor_station(g,state[i],eps))
+  
+  return res
+
+def best_answer (g,initial_state,l2,l3) :
+  
+  res = simulated_annealing(g,initial_state,l2,l3)
+  
+  print(res)
+  for i in range (0,4) :
+    new_res = simulated_annealing(g,initial_state,l2,l3)
+    print(new_res)
+    if f(g,new_res,l2,l3) < f(g,res,l2,l3) :
+      res = new_res
+  return res
+
+tailleim=len(immeubleL)
+si=[]
+for i in range (0,3):
+   o=random.randint(0,tailleim)
+   si.append(immeubleL[o])
+
+
+#answer = best_answer(g_final,si,poidsLL,immeubleL)²
+
+#print(f(graphe,answer,a,imm))
