@@ -503,7 +503,7 @@ def simulated_annealing(g,initial_state,l2,l3):
     solution = current_state
     nb_sta = len(initial_state)
     while current_temp > final_temp:
-        neighbor = get_neighbors(g,current_state,l2,current_temp*d_global/nb_sta)
+        neighbor = get_neighbors(g,current_state,l2,(current_temp*d_global)/(nb_sta*300)
         # print(neighbor)
         # Check if neighbor is best so far
         cost_diff = f(g,current_state,l2,l3)-f(g,neighbor,l2,l3)
