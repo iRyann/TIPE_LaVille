@@ -1,1 +1,20 @@
-[[6, 9, [6.9, 9]], 7]
+{"dtasetid":"filaire-de-voirie",
+"recordid":"6ff917dc1ac",
+"fields":{
+    "longueur":146.230773891848,
+    "fromright":0,
+    "codsti":313550000047,
+    "geo_shape":{
+        "coordinates":[
+        [[1.571729386142422,
+            3.612140358497975],
+            [1.570169867735635,
+                43.612809992835835]]
+        ],
+        "type":"MultiLineString"
+    },
+    "code_insee":31355,
+    "toright":0,
+    "nrivoli":"3103550030",
+    "motdir":"AV DES PYRENEES",
+    "toleft":0,}}

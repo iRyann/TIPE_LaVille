@@ -4,20 +4,22 @@ import math as m
 import numpy as np
 import random
 import json
-
+from mpl_toolkits.axes_grid1 import make_axes_locatable
+import matplotlib as mpl
+import matplotlib.pyplot as plt
 #---------------------------------------------------
 #           Fonctions auxiliaires
 #---------------------------------------------------
-
+d_global=500
 def est_valide (tab):
-    #Retourne si dist(tab,capitole)<10 Km où tab=[long,lat]
+    #Retourne si dist(tab,capitole)<p Km où tab=[long,lat]
     lat=m.radians(tab[1])
     long=m.radians(tab[0])
     r=6371*(10**3)
     lat_t=m.radians(43.60395967066511)
     long_t=m.radians(1.4433469299842416)
     d=2*r*m.asin(m.sqrt((m.sin((lat-lat_t)/2)**2)+m.cos(lat)*m.cos(lat_t)*(m.sin((long-long_t)/2))**2))
-    return (d<100)
+    return (d<d_global)
 
 def distance (a,b):
     #Calcule d(a,b) en m
@@ -33,89 +35,63 @@ def rgb_to_hex(rgb):
     return '#%02x%02x%02x' % rgb
 
 #---------------------------------------------------
-#   Fonction d'affichage
+#   Fonctions d'affichage
 #---------------------------------------------------
 
-#def affiche_graphe( d : dict, tab : list,immeuble : list, poids_im : list):
-    #fig, ax = plt.subplots()
+def affiche_graphe_simple( d : dict , coord : list , opt : bool) :
+  #Affiche le graphe d avec les noeuds si opt = true
+  for k,v in d.items():
+     for kk in v.keys():
+        y=[coord[k][0],coord[kk][0]]
+        x=[coord[k][1],coord[kk][1]]
+        plt.plot(x,y,c='#283747')
+        if opt :
+          plt.scatter(x,y,s=15,c='#B03A2E')
+  plt.show()
+
+        
+def coord_stations(s:list,tab : list):
+  (x,y,d)=s
+  A=tab[x]
+  B=tab[y]
+  L=distance(tab[x],tab[y])
+  alpha=d/L
+  AB=[B[0]-A[0],B[1]-A[1]]
+  C=[A[0]+alpha*AB[0],A[1]+alpha*AB[1]]
+  return C
+
+def affiche_graphe_pondération( d : dict, tab : list,station : list ):    
+  #Affiche le graphe d et les stations
+  # tab: coordonnées   
+    N = max
+    fig, ax1 = plt.subplots()
+    # colormap
+    cmap = plt.get_cmap('jet', N)
     c=0
-    c_im=0
     for k,v in d.items():
         for j in v.keys():
-
+            
             x=[tab[j][0],tab[k][0]]
             y=[tab[j][1],tab[k][1]]
-            e=tab[j][0]-tab[k][0]
-            if e==0:
-                e=10**(-16)
-
-
-            xx = np.linspace(tab[j][0],tab[k][0], 100)
-            yy = ((tab[j][1]-tab[k][1])/(e))*(xx-tab[k][0])+tab[k][1]
-            ang = (tab[j][1]-tab[k][1])/(e)
-            
-            plt.plot(xx, yy, linewidth=0.5, c='green')
-            
-            # On ajoute les immeuble de la rue ---
-            if c_im==c :
-                
-                xim_l=[]
-                yim_l=[]
-                area=[]
-                
-                for i in range (c_im,c_im+len(poids_im[c])):
-                    (a,b,d)=immeuble[i]
-                    xim_l.append(x[0]+d*np.sin(ang))
-                    yim_l.append(x[1]+d*np.cos(ang)*(np.abs(ang)/ang))
-                    area.append(poids_im[c][i-c_im])
-
-                c_im = c + len(poids_im[c])
-
-                data = {'x': np.array(xim_l),
-
-                        'y': np.array(yim_l),
-
-                        'color': np.array(area)}
-                
-                plt.scatter('x', 'y', c='color', data=data)
-            # -------------------------------------
+            ax1.plot(x, y, c=cmap(popL[c]))
             
             c+=1
-    
-    cbar= plt.colorbar()
 
-    cbar.set_label("Densité de population", labelpad=+1)
-       
+    for i in range(0,len(station)):
+      C=coord_stations(station[i],tab)
+      ax1.plot(C[0],C[1],marker='^',c='#581845')
+    
+    
+
+    # Normalizer
+    norm = mpl.colors.Normalize(vmin=0, vmax=N)
+    
+    # creating ScalarMappable
+    sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
+    sm.set_array([])
+    
+    plt.colorbar(sm, ticks=np.linspace(0, N, 5))
     plt.show()
-
-
-def affiche_graphe( d : dict, tab : list,immeuble : list):
-    #fig, ax = plt.subplots()
-    c=0
-    c_im=0
-    for k,v in d.items():
-        for j in v.keys():
-
-            x=[tab[j][0],tab[k][0]]
-            y=[tab[j][1],tab[k][1]]
-            e=tab[j][0]-tab[k][0]
-            if e==0:
-                e=10**(-16)
-
-
-            xx = np.linspace(tab[j][0],tab[k][0], 100)
-            yy = ((tab[j][1]-tab[k][1])/(e))*(xx-tab[k][0])+tab[k][1]
-            ang = (tab[j][1]-tab[k][1])/(e)
-            
-            plt.plot(xx, yy, linewidth=0.5)
-                       
-            c+=1
-    
-    
-       
-    plt.show()
-
-
 
 #---------------------------------------------------#
 #           Récupération des données                #
@@ -198,7 +174,7 @@ t=recupere_data(LGeopoints,con,requete2)
 # 1/ Création du graphe
 
 g={} #Graphe dict de dict 
-tab=[] #Coordonnées associées à un pt une graphe
+tab=[] #Coordonnées associées à un pt du graphe
 noeud_valide=[] # Un noeud est dit valide (ie à "true") ssi il est à considérer après fusion du graphe 
 
 def ajoute_voisin(g : dict, i : int , c : tuple ) :
@@ -239,11 +215,11 @@ ajoute_noeud(g,t,tab)
 
 ##Calcul distance partition
 eta = 3 #distance de partionnement
-nlat=int(distance([gd["longmin"],gd["latmin"]],[gd["longmin"],gd["latmax"]])/eta)
-nlong=int(distance([gd["longmin"],gd["latmin"]],[gd["longmax"],gd["latmin"]])/eta)
+nlat=1+int(distance([gd["longmin"],gd["latmin"]],[gd["longmin"],gd["latmax"]])/eta)
+nlong=1+int(distance([gd["longmin"],gd["latmin"]],[gd["longmax"],gd["latmin"]])/eta)
 
 
-partition_vide(partnoeuds,nlat,nlong) # On crée la partition vide 
+partition_vide(partnoeuds,nlong,nlat) # On crée la partition vide 
 
 tabclasse=[] # Pour chaque noeud, on retient sa classe. 
 
@@ -260,12 +236,12 @@ def add_part(gg : dict, t: list):
         dlat=distance([tab[k][0],gd["latmin"]],tab[k])
         
         
-        while(not(N*nlong<=dlong and dlong<=(N+1)*nlong)):
+        while(not(N*eta<=dlong and dlong<=(N+1)*eta)):
             N+=1
             
            
             
-        while(not(E*nlat<=dlat and dlat<=(E+1)*nlat)):
+        while(not(E*eta<=dlat and dlat<=(E+1)*eta)):
             E+=1
             
         partnoeuds[N][E].append(k) #On ajoute le noeud dans la partition
@@ -280,7 +256,7 @@ add_part(g,tab)
 
 # 3/ Correction du graphe
   
-    # calculer le dregre max
+    
 def fusion ( i : int , j : int ):
     # Fusionne le noeud i et j, en attibuant remplaçant j par i dans les voisins de celui-ci
     for k,v in g[j].items():
@@ -300,7 +276,9 @@ def classement(g:dict, t : list , eps : float):
     ## Classe le dictionnaire g en recquérant les fusions proches à eps près
     ## Précondition : eps<eta
     for k in g.keys():
+        
         if noeud_valide[k]: #Teste si k n'a pas déjà été fusionné 
+            
             X=k
             a_fusionner=[]
             # a_fusionner U {X} est l'ensemble des noeuds à distance < esp déjà trouvés 
@@ -320,7 +298,7 @@ def classement(g:dict, t : list , eps : float):
             for i in a_fusionner:
                 fusion(X,i)
                 assert(not(noeud_valide[i]))
-
+        
 classement(g,tab,0.9*eta) # Attention eps < eta
 
 g_final={}
@@ -349,8 +327,8 @@ def renum( t1 : list , t2 : list, g1 : dict, gf : dict):
 
 
 renum(noeud_valide,gf_coord,g,g_final)
-print("Graphe final crée avec succès !")
 
+print("Graphe final crée avec succès !")
 
 
 
@@ -361,10 +339,10 @@ print("Graphe final crée avec succès !")
 
 ## --------- Ajout de la population ------------ #
 
-immeubleL = [] ## Liste des immeubles  
-poidsL = [] # Poids de chaque immeuble
+immeubleL = [] ## Liste d'immeubles 
+poidsL = [] # Poids de chaque immeuble (par rue !!!! [[rue1],[rue2]] )
 popL = [] # Nombre d'habitant par rue 
-poidsLL = []
+poidsLL = [] #Poids de chaque immeuble
 ## Types de rues : 
 # 0 : Administrative
 # 1 : Résidentielle
@@ -377,8 +355,8 @@ def proba_rue() :
         y=random.random()
         if y<0.5:
             return 0
-        else: return 1
-    else: return 2
+        else: return 2
+    else: return 1
 
 
 
@@ -405,17 +383,17 @@ def ajoute_population( g : dict , poids_immeuble : list , immeuble : list, popul
                             px=vv/5
                             pt=random.uniform(0,0.5*px)
                             px+=pt
-                            poids=random.randint(10,20)
+                            poids=random.randint(20,30)
                         case 1:
                             px=vv/10
                             pt=random.uniform(0,0.5*px)
                             px+=pt
-                            poids=random.randint(20,30)
+                            poids=random.randint(40,60)
                         case 2:
                             px=vv/7
                             pt=random.uniform(0,0.8*px)
                             px+=pt
-                            poids=random.randint(10,20)
+                            poids=random.randint(20,40)
                     if dist_parcours+px<vv:
                         immeuble.append((k,kk,dist_parcours+px))
                         poids_im.append(poids)
@@ -430,9 +408,14 @@ def ajoute_population( g : dict , poids_immeuble : list , immeuble : list, popul
 
 ajoute_population(g_final,poidsL,immeubleL,popL)
 
+max=0
+
+for i in range(0,len(popL)):
+    if max <= popL[i]:
+      max=popL[i]
 
 
-affiche_graphe(g,tab,immeubleL)
+
 
 # ---------------------------------------#
 #               Résolution               #
@@ -440,92 +423,43 @@ affiche_graphe(g,tab,immeubleL)
 
 import heapq
 
-
-def succ (g,n) :
-  u=n
-  return g[u] 
-
-def dijkstra (g,s,sf) :
+def dijkstra (g,s) :
   n = len(g)
   d = []
   for i in range (0,n) :
-    d.append(1000)
+    d.append(10000)
   d[s]=0
   o=[]
   heapq.heappush(o, (d[s], s))
   while o != [] :
     (_,u) = heapq.heappop(o)
-    for k in succ(g,u).keys() :
-      v=int(k)
-      if d[u]+succ(g,u)[k] < d[v] :
-        temp = d[v]
-        d[v] = d[u]+succ(g,u)[k]
-        if temp == 1000 :
-          heapq.heappush(o,(d[v],v))
-  return d[sf]
+    for k in g[u].keys() :
+      if d[u]+(g[u])[k] < d[k] :
+        temp = d[k]
+        d[k] = d[u]+(g[u])[k]
+        if temp == 10000 :
+          heapq.heappush(o,(d[k],k))
+  return d
+
+distances_gf = []
+for i in range (0,len(g_final)) :
+    distances_gf.append(dijkstra(g_final,i))
 
 
-
-def graph_with_station (g,s1,s2,d,ind_imm,l3):
-  (s1_imm,s2_imm,d_imm) = l3[ind_imm]
-  if (s1_imm == s1) and (s2_imm == s2) :
-    if d_imm < d :
-      ns1 = len(g)-1
-      ns2 = s2_imm
-      d = d-d_imm
+def dist_imm_sta (imm,sta,g) :
+    (s1_imm,s2_imm,d_imm) = imm
+    (s1_sta,s2_sta,d_sta) = sta
+    if (s1_imm==s1_sta) and (s2_imm==s2_sta) :
+        return max(d_imm,d_sta)-min(d_imm,d_sta)
     else :
-      ns1 = s1_imm
-      ns2 = len(g)-1
-  elif (s1_imm == s2) and (s2_imm == s1) :
-    if d_imm < (d_imm + (g[len(g)-1])[s2_imm] - d) :
-      ns1 = s2_imm
-      ns2 = len(g)-1
-    else:
-      ns1 = len(g)-1
-      ns2 = s1_imm
-      d = d - (g[len(g)-1])[s2_imm]
-  else :
-    ns1 = s1
-    ns2 = s2
-  new_g = {}
-  for k,v in g.items() :
-    new_g[k] = v.copy()
-  sta=len(g)
-  new_g[sta]={ns1:d,ns2:(g[ns1])[ns2]-d}
-  (new_g[ns1])[sta]=d
-  (new_g[ns2])[sta]=(g[ns1])[ns2]-d
-  del (new_g[ns1])[ns2]
-  del (new_g[ns2])[ns1]
-  return new_g
-
-
-
-def graph_with_imm (g,ind_imm,l3):
-  new_g = {}
-  for k,v in g.items() :
-    new_g[k] = v.copy()
-  ind_imm_gra=len(g)
-  (s1,s2,d) = l3[ind_imm]
-  ns1 = s1
-  ns2 = s2
-  new_g[ind_imm_gra]={ns1:d,ns2:(g[ns1])[ns2]-d}
-  (new_g[ns1])[ind_imm_gra]=d
-  (new_g[ns2])[ind_imm_gra]=(g[ns1])[ns2]-d
-  del (new_g[ns1])[ns2]
-  del (new_g[ns2])[ns1]
-  return new_g
+        return min(distances_gf[s1_imm][s1_sta]+d_imm+d_sta,distances_gf[s1_imm][s2_sta]+d_imm+(g[s1_sta])[s2_sta]-d_sta,distances_gf[s2_imm][s1_sta]+(g[s1_imm])[s2_imm]-d_imm+d_sta,distances_gf[s2_imm][s2_sta]+(g[s1_imm])[s2_imm]-d_imm+(g[s1_sta])[s2_sta]-d_sta)
 
 
 
 def min_dist (g,l,l3,p) :
-  g_imm = graph_with_imm (g,p,l3)
-  (s1,s2,d) = l[0]
-  g0 = graph_with_station(g_imm,s1,s2,d,p,l3)
-  res = dijkstra(g0,len(g0)-2,len(g0)-1)
+  res = dist_imm_sta(l3[p],l[0],g)
   for i in range (1,len (l)) :
-    (si1,si2,di) = l[i]
-    gi = graph_with_station(g_imm,si1,si2,di,p,l3)
-    res = min(res,dijkstra(gi,len(gi)-2,len(gi)-1))
+    res = min(res,dist_imm_sta(l3[p],l[i],g))
   return res
 
 def f (g,l,l2,l3) :
@@ -549,9 +483,9 @@ def simulated_annealing(g,initial_state,l2,l3):
     # Start by initializing the current state with the initial state
     current_state = initial_state
     solution = current_state
-
+    nb_sta = len(initial_state)
     while current_temp > final_temp:
-        neighbor = get_neighbors(g,current_state,l2,current_temp)
+        neighbor = get_neighbors(g,current_state,l2,(current_temp*d_global)/(nb_sta*300))
         # print(neighbor)
         # Check if neighbor is best so far
         cost_diff = f(g,current_state,l2,l3)-f(g,neighbor,l2,l3)
@@ -565,8 +499,7 @@ def simulated_annealing(g,initial_state,l2,l3):
                 solution = neighbor
         # decrement the temperature
         # print(solution)
-        current_temp = current_temp * 0.999
-        
+        current_temp = current_temp * 0.99
         current_state = solution
     return solution
 
@@ -576,27 +509,25 @@ def simulated_annealing(g,initial_state,l2,l3):
 def get_neighbor_station(g,station,eps):
   """Returns neighbors of the argument state for your solution."""
   (s1,s2,d) = station
-  ns1 = s1
-  ns2 = s2
   carburant=random.uniform(0,eps)
   sens=random.randint(0,1)
   if sens == 1 :
-    d = (g[ns1])[ns2] - d
-    temp = ns1
-    ns1 = ns2
-    ns2 = temp
+    d = (g[s1])[s2] - d
+    temp = s1
+    s1 = s2
+    s2 = temp
   while carburant != 0 :
-    if carburant > (g[ns1])[ns2] - d :
-      carburant = carburant - ((g[ns1])[ns2] - d)
-      voisins = list(g[ns2].keys())
-      temp=ns2
-      ns2=random.choice(voisins)
-      ns1=temp
+    if carburant > (g[s1])[s2] - d :
+      carburant = carburant - ((g[s1])[s2] - d)
+      voisins = list(g[s2].keys())
+      temp=s2
+      s2=random.choice(voisins)
+      s1=temp
       d = 0
     else :
       d = d + carburant
       carburant = 0
-  return (ns1,ns2,d)
+  return (s1,s2,d)
 
 
 def get_neighbors(g,state,l2,eps):
@@ -604,13 +535,13 @@ def get_neighbors(g,state,l2,eps):
   res=[]
   for i in range (0,len(state)):
     res.append(get_neighbor_station(g,state[i],eps))
-  
+
   return res
 
 def best_answer (g,initial_state,l2,l3) :
-  
+
   res = simulated_annealing(g,initial_state,l2,l3)
-  
+
   print(res)
   for i in range (0,4) :
     new_res = simulated_annealing(g,initial_state,l2,l3)
@@ -621,11 +552,17 @@ def best_answer (g,initial_state,l2,l3) :
 
 tailleim=len(immeubleL)
 si=[]
-for i in range (0,3):
+for i in range (0,5):
    o=random.randint(0,tailleim)
    si.append(immeubleL[o])
 
 
-#answer = best_answer(g_final,si,poidsLL,immeubleL)²
-
-#print(f(graphe,answer,a,imm))
+# ---------------------------------------#
+#        Lancement des processus         #
+#----------------------------------------#
+#answer = best_answer(g_final,si,poidsLL,immeubleL)
+affiche_graphe_pondération(g_final,gf_coord,si)
+#print(si)
+#print(f(g_final,si,poidsLL,immeubleL))
+#print(answer)
+#print(f(g_final,answer,poidsLL,immeubleL))

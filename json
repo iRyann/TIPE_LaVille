@@ -1,0 +1,49 @@
+{
+    "datasetid":"filaire-de-voirie",
+    "recordid":"6ff917dc1acbddd295dc75c7c28cde466ad43645",
+    "fields":{
+        "longueur":146.230773891848,
+        "fromright":0,
+        "codsti":313550000047,
+        "geo_shape":{
+            "coordinates":[
+            [
+                [
+                    1.571729386142422,
+                    43.612140358497975
+                ],
+                [
+                    1.570169867735635,
+                    43.612809992835835
+                ]
+            ]
+            ],
+            "type":"MultiLineString"
+        },
+        "code_insee":31355,
+        "toright":0,
+        "nrivoli":"3103550030",
+        "motdir":"PYRENEES (AV DES PYRENEES)",
+        "toleft":0,
+        "geo_point_2d":[
+            43.61247517566691,
+            1.5709496269390282
+        ],
+        "modification":"2011-02-18+01:00",
+        "creation":"2010-12-01+01:00",
+        "type":"PRINCIPAL",
+        "fromleft":0,
+        "street":"AV DES PYRENEES",
+        "id_troncon":29272,
+        "rivoli":"3103550030N",
+        "id_seg_ges":29272
+    },
+    "geometry":{
+        "type":"Point",
+        "coordinates":[
+            1.5709496269390282,
+            43.61247517566691
+        ]
+    },
+    "record_timestamp":"2023-05-12T22:00:45.087Z"
+},
